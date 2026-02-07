@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { LeagueData, DEFAULT_LEAGUE_DATA } from "@/lib/types";
 import { getStandings, getTeamWeekResult } from "@/lib/scoring";
@@ -29,16 +30,39 @@ export default function StandingsPage() {
 
   return (
     <div className="space-y-12">
+      {/* Print-only header with logo */}
+      <div className="print-header hidden items-center gap-3 pb-4 border-b border-neutral-200 mb-6">
+        <Image src="/logo.png" alt="RBGC" width={40} height={47} />
+        <div>
+          <div className="text-[18px] font-bold">{data.config.leagueName}</div>
+          <div className="text-[12px]">
+            {data.config.scoringFormat === "stableford" ? "Stableford" : "Stroke Play"}
+            {" \u00b7 "}Best {data.config.bestScoresCount} scores
+            {data.config.doublePointsLastWeek ? " \u00b7 Double points final week" : ""}
+          </div>
+        </div>
+      </div>
+
       <div>
-        <Link
-          href="/"
-          className="text-[13px] text-neutral-400 hover:text-neutral-600 transition-colors"
-        >
-          Dashboard
-        </Link>
-        <h1 className="mt-1 font-serif text-[32px] italic text-neutral-900">
-          Standings
-        </h1>
+        <div className="no-print">
+          <Link
+            href="/"
+            className="text-[13px] text-neutral-400 hover:text-neutral-600 transition-colors"
+          >
+            Dashboard
+          </Link>
+        </div>
+        <div className="flex items-baseline justify-between">
+          <h1 className="mt-1 font-serif text-[32px] italic text-neutral-900">
+            Standings
+          </h1>
+          <button
+            onClick={() => window.print()}
+            className="no-print text-[13px] text-neutral-400 hover:text-neutral-900 transition-colors"
+          >
+            Print
+          </button>
+        </div>
         <p className="mt-0.5 text-[13px] text-neutral-500">
           {data.config.leagueName}
           <span className="mx-1.5">&middot;</span>

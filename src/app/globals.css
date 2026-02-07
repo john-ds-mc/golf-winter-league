@@ -49,3 +49,32 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+/* Print styles */
+@media print {
+  nav, .no-print {
+    display: none !important;
+  }
+  body {
+    font-size: 11px;
+    color: #000;
+  }
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .print-header {
+    display: flex !important;
+  }
+  section {
+    break-inside: avoid;
+  }
+  * {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+  .bg-primary-50\/60, .bg-primary-50\/50 {
+    background: #eee !important;
+  }
+}
