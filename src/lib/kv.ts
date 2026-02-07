@@ -11,14 +11,19 @@ const KV_KEY = "league-data";
 let memoryStore: LeagueData | null = null;
 
 async function getRedisClient() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-    return null;
+  // Support both Vercel Marketplace (REDIS_URL) and manual Upstash (KV_REST_API_URL/TOKEN)
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    const { Redis } = await import("@upstash/redis");
+    return new Redis({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+    });
   }
-  const { Redis } = await import("@upstash/redis");
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  });
+  if (process.env.REDIS_URL) {
+    const { Redis } = await import("@upstash/redis");
+    return Redis.fromEnv();
+  }
+  return null;
 }
 
 export async function getLeagueData(): Promise<LeagueData> {
