@@ -39,7 +39,7 @@ export default function StandingsPage() {
           <div className="text-[18px] font-bold">{data.config.leagueName}</div>
           <div className="text-[12px]">
             {data.config.scoringFormat === "stableford" ? "Stableford" : "Stroke Play"}
-            {" \u00b7 "}Best {data.config.bestScoresCount} scores
+            {" \u00b7 "}{data.config.scoringFormat === "stableford" ? "Top" : "Low"} {data.config.bestScoresCount} scores
             {data.config.doublePointsLastWeek ? " \u00b7 Double points final week" : ""}
           </div>
         </div>
@@ -265,7 +265,7 @@ export default function StandingsPage() {
                 <div className="text-[11px]">
                   Week {weekNum}
                   {isLastWeek && data.config.doublePointsLastWeek ? " (Double Points)" : ""}
-                  {" \u00b7 "}Best {data.config.bestScoresCount} scores
+                  {" \u00b7 "}{data.config.scoringFormat === "stableford" ? "Top" : "Low"} {data.config.bestScoresCount} scores
                 </div>
               </div>
             </div>

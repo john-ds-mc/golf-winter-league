@@ -12,6 +12,7 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const { isAdmin, checked } = useAuth();
   const router = useRouter();
 
@@ -24,39 +25,66 @@ export default function SetupPage() {
   useEffect(() => {
     fetch("/api/league")
       .then((res) => res.json())
-      .then((d: LeagueData) => setData(d))
+      .then((d: LeagueData) => { setData(d); setDirty(false); })
       .finally(() => setLoading(false));
   }, []);
+
+  function update(next: LeagueData) {
+    setData(next);
+    setDirty(true);
+    setSaved(false);
+  }
 
   async function save() {
     setSaving(true);
     setSaved(false);
 
-    const weeks = Array.from({ length: data.config.numberOfWeeks }, (_, i) => {
-      const existing = data.weeks.find((w) => w.weekNumber === i + 1);
-      if (existing) return existing;
-      const scores = data.teams.flatMap((team) =>
-        team.players.map((player) => ({
-          playerId: player.id,
-          teamId: team.id,
-          score: null as number | null,
-        }))
-      );
-      return { weekNumber: i + 1, scores };
-    });
+    try {
+      // Re-fetch latest to avoid overwriting scores entered on other pages
+      const latest = await fetch("/api/league").then((r) => r.json()) as LeagueData;
 
-    const updated = { ...data, weeks };
+      // Merge: take local config + teams, but preserve existing week scores
+      const weeks = Array.from({ length: data.config.numberOfWeeks }, (_, i) => {
+        const weekNum = i + 1;
+        const existing = latest.weeks.find((w) => w.weekNumber === weekNum);
+        // Build full score slots for current teams/players
+        const fullScores = data.teams.flatMap((team) =>
+          team.players.map((player) => {
+            // Preserve any existing score for this player
+            const prev = existing?.scores.find(
+              (s) => s.playerId === player.id && s.teamId === team.id
+            );
+            return {
+              playerId: player.id,
+              teamId: team.id,
+              score: prev?.score ?? null as number | null,
+            };
+          })
+        );
+        return { weekNumber: weekNum, scores: fullScores };
+      });
 
-    await fetch("/api/league", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updated),
-    });
+      const updated: LeagueData = { config: data.config, teams: data.teams, weeks };
 
-    setData(updated);
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+      const res = await fetch("/api/league", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated),
+      });
+
+      if (!res.ok) {
+        throw new Error(res.status === 401 ? "Not authorized" : "Save failed");
+      }
+
+      setData(updated);
+      setDirty(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
@@ -92,7 +120,7 @@ export default function SetupPage() {
               type="text"
               value={data.config.leagueName}
               onChange={(e) =>
-                setData({
+                update({
                   ...data,
                   config: { ...data.config, leagueName: e.target.value },
                 })
@@ -108,7 +136,7 @@ export default function SetupPage() {
             <div className="flex gap-0 rounded-md border border-neutral-200 overflow-hidden w-fit">
               <button
                 onClick={() =>
-                  setData({
+                  update({
                     ...data,
                     config: { ...data.config, scoringFormat: "stableford" },
                   })
@@ -123,7 +151,7 @@ export default function SetupPage() {
               </button>
               <button
                 onClick={() =>
-                  setData({
+                  update({
                     ...data,
                     config: { ...data.config, scoringFormat: "strokeplay" },
                   })
@@ -155,7 +183,7 @@ export default function SetupPage() {
                 max={20}
                 value={data.config.numberOfWeeks}
                 onChange={(e) =>
-                  setData({
+                  update({
                     ...data,
                     config: {
                       ...data.config,
@@ -168,7 +196,7 @@ export default function SetupPage() {
             </div>
             <div>
               <label className="mb-1 block text-[13px] font-medium text-neutral-700">
-                Best scores count
+                {data.config.scoringFormat === "stableford" ? "Top" : "Low"} scores count
               </label>
               <input
                 type="number"
@@ -176,7 +204,7 @@ export default function SetupPage() {
                 max={20}
                 value={data.config.bestScoresCount}
                 onChange={(e) =>
-                  setData({
+                  update({
                     ...data,
                     config: {
                       ...data.config,
@@ -193,7 +221,7 @@ export default function SetupPage() {
                   type="checkbox"
                   checked={data.config.doublePointsLastWeek}
                   onChange={(e) =>
-                    setData({
+                    update({
                       ...data,
                       config: {
                         ...data.config,
@@ -221,7 +249,7 @@ export default function SetupPage() {
             </h2>
             <button
               onClick={() =>
-                setData({
+                update({
                   ...data,
                   config: {
                     ...data.config,
@@ -262,7 +290,7 @@ export default function SetupPage() {
                         updated.push(defaults[updated.length] ?? 1);
                       }
                       updated[i] = parseInt(e.target.value) || 0;
-                      setData({
+                      update({
                         ...data,
                         config: { ...data.config, leaguePoints: updated },
                       });
@@ -283,7 +311,19 @@ export default function SetupPage() {
         </h2>
         <TeamBuilder
           teams={data.teams}
-          onChange={(teams) => setData({ ...data, teams })}
+          onChange={(teams) => {
+            const next = { ...data, teams };
+            // Auto-resize league points when team count changes
+            if (teams.length !== data.teams.length) {
+              const defaults = generateDefaultLeaguePoints(teams.length);
+              const current = data.config.leaguePoints ?? generateDefaultLeaguePoints(data.teams.length);
+              const resized = Array.from({ length: teams.length }, (_, i) =>
+                current[i] ?? defaults[i]
+              );
+              next.config = { ...next.config, leaguePoints: resized };
+            }
+            update(next);
+          }}
         />
       </section>
 
@@ -291,13 +331,16 @@ export default function SetupPage() {
       <div className="flex items-center gap-3 border-t border-neutral-200 pt-6">
         <button
           onClick={save}
-          disabled={saving}
+          disabled={saving || !dirty}
           className="rounded-md bg-neutral-900 px-4 py-2 text-[13px] font-medium text-white hover:bg-neutral-800 disabled:opacity-50 transition-colors"
         >
           {saving ? "Saving..." : "Save"}
         </button>
         {saved && (
           <span className="text-[13px] text-primary-600">Saved</span>
+        )}
+        {dirty && !saving && !saved && (
+          <span className="text-[13px] text-neutral-400">Unsaved changes</span>
         )}
       </div>
     </div>

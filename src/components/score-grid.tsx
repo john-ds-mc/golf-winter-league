@@ -32,7 +32,7 @@ export function ScoreGrid({
           {team.name}
         </h3>
         <span className="text-[13px] tabular-nums text-neutral-500">
-          Best {config.bestScoresCount}:{" "}
+          {config.scoringFormat === "stableford" ? "Top" : "Low"} {config.bestScoresCount}:{" "}
           <span className="font-semibold text-neutral-900">{teamTotal}</span>
           {rank !== undefined && leaguePoints !== undefined && (
             <>

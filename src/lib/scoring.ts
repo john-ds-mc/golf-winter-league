@@ -5,13 +5,12 @@ export interface TeamWeekResult {
   teamName: string;
   allScores: { playerId: string; playerName: string; score: number | null; counting: boolean }[];
   countingTotal: number;
-  adjustedTotal: number; // after double-points multiplier
 }
 
 export interface WeekLeagueResult {
   teamId: string;
   teamName: string;
-  stablefordTotal: number;
+  scoreTotal: number;
   rank: number;
   leaguePoints: number;
   adjustedLeaguePoints: number; // after double-points multiplier
@@ -39,8 +38,6 @@ export function getTeamWeekResult(
   if (!week) return [];
 
   const isStableford = config.scoringFormat === "stableford";
-  const isLastWeek = weekNumber === config.numberOfWeeks;
-  const multiplier = isLastWeek && config.doublePointsLastWeek ? 2 : 1;
 
   return teams.map((team) => {
     const teamScores = week.scores.filter((s) => s.teamId === team.id);
@@ -57,12 +54,13 @@ export function getTeamWeekResult(
     });
 
     // Get valid (non-null) scores and sort
+    // Stableford: highest first (descending) — higher points = better
+    // Stroke play: lowest first (ascending) — fewer strokes = better
     const validScores = allScores
       .filter((s) => s.score !== null)
-      .sort((a, b) => {
-        if (isStableford) return b.score! - a.score!; // descending
-        return a.score! - b.score!; // ascending
-      });
+      .sort((a, b) =>
+        isStableford ? b.score! - a.score! : a.score! - b.score!
+      );
 
     // Mark the best N as counting
     const countingIds = new Set(
@@ -81,7 +79,6 @@ export function getTeamWeekResult(
       teamName: team.name,
       allScores,
       countingTotal,
-      adjustedTotal: countingTotal * multiplier,
     };
   });
 }
@@ -144,7 +141,7 @@ export function getWeekLeaguePoints(
     results.push({
       teamId: r.teamId,
       teamName: r.teamName,
-      stablefordTotal: r.countingTotal,
+      scoreTotal: r.countingTotal,
       rank,
       leaguePoints: lp,
       adjustedLeaguePoints: lp * multiplier,

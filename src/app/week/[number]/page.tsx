@@ -65,14 +65,44 @@ export default function WeekPage({ params }: { params: Promise<{ number: string 
   async function save() {
     setSaving(true);
     setSaved(false);
-    await fetch("/api/league", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+
+    try {
+      // Re-fetch latest to avoid overwriting config/team changes from setup
+      const latest = await fetch("/api/league").then((r) => r.json()) as LeagueData;
+
+      // Merge: keep latest config + teams, only replace this week's scores
+      const localWeek = data.weeks.find((w) => w.weekNumber === weekNumber);
+      const weeks = [...latest.weeks];
+      const existingIdx = weeks.findIndex((w) => w.weekNumber === weekNumber);
+
+      if (localWeek) {
+        if (existingIdx >= 0) {
+          weeks[existingIdx] = localWeek;
+        } else {
+          weeks.push(localWeek);
+        }
+      }
+
+      const merged: LeagueData = { ...latest, weeks };
+
+      const res = await fetch("/api/league", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(merged),
+      });
+
+      if (!res.ok) {
+        throw new Error(res.status === 401 ? "Not authorized" : "Save failed");
+      }
+
+      setData(merged);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
