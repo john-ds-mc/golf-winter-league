@@ -5,35 +5,32 @@ const KV_KEY = "league-data";
 // In-memory fallback for local dev (server-side)
 let memoryStore: LeagueData | null = null;
 
+function findRestCredentials(): { url: string; token: string } | null {
+  // Check common env var patterns for Upstash REST credentials
+  // Vercel Marketplace lets users set a custom prefix (e.g. GOLF_DB)
+  const pairs = [
+    [process.env.KV_REST_API_URL, process.env.KV_REST_API_TOKEN],
+    [process.env.UPSTASH_REDIS_REST_URL, process.env.UPSTASH_REDIS_REST_TOKEN],
+    [process.env.GOLF_DB_REST_URL, process.env.GOLF_DB_REST_TOKEN],
+  ];
+
+  for (const [url, token] of pairs) {
+    if (url && token) return { url, token };
+  }
+
+  return null;
+}
+
 async function getRedisClient() {
   try {
-    const { Redis } = await import("@upstash/redis");
-
-    // 1. Explicit URL + token (manual setup or old Vercel KV)
-    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      return new Redis({
-        url: process.env.KV_REST_API_URL,
-        token: process.env.KV_REST_API_TOKEN,
-      });
-    }
-
-    // 2. Upstash env vars (Vercel Marketplace sets these)
-    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-      return Redis.fromEnv();
-    }
-
-    // 3. REDIS_URL as REST URL (some integrations use https:// REST URLs here)
-    if (process.env.REDIS_URL?.startsWith("https://")) {
-      // Try to use REDIS_URL as the REST endpoint -- needs a token too
-      const token = process.env.REDIS_TOKEN || process.env.REDIS_REST_TOKEN;
-      if (token) {
-        return new Redis({ url: process.env.REDIS_URL, token });
-      }
+    const creds = findRestCredentials();
+    if (creds) {
+      const { Redis } = await import("@upstash/redis");
+      return new Redis(creds);
     }
   } catch (e) {
     console.error("Failed to create Redis client:", e);
   }
-
   return null;
 }
 
