@@ -42,7 +42,7 @@ export function StandingsTable({ standings, config, compact }: StandingsTablePro
                 </th>
               ))}
             <th className="pb-2 pl-3 text-right font-medium text-neutral-900">
-              Total
+              Pts
             </th>
           </tr>
         </thead>

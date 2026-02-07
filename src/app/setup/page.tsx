@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LeagueData, DEFAULT_LEAGUE_DATA } from "@/lib/types";
 import { TeamBuilder } from "@/components/team-builder";
 import { useAuth } from "@/lib/use-auth";
+import { generateDefaultLeaguePoints } from "@/lib/scoring";
 
 export default function SetupPage() {
   const [data, setData] = useState<LeagueData>(DEFAULT_LEAGUE_DATA);
@@ -210,6 +211,70 @@ export default function SetupPage() {
           </div>
         </div>
       </section>
+
+      {/* League Points */}
+      {data.teams.length > 0 && (
+        <section>
+          <div className="mb-4 flex items-baseline justify-between">
+            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-neutral-400">
+              League Points
+            </h2>
+            <button
+              onClick={() =>
+                setData({
+                  ...data,
+                  config: {
+                    ...data.config,
+                    leaguePoints: generateDefaultLeaguePoints(data.teams.length),
+                  },
+                })
+              }
+              className="text-[12px] text-neutral-400 hover:text-neutral-900 transition-colors"
+            >
+              Reset defaults
+            </button>
+          </div>
+          <p className="mb-3 text-[12px] text-neutral-400">
+            Points awarded per finishing position each week.
+          </p>
+          <div className="border-t border-neutral-200">
+            {Array.from({ length: data.teams.length }, (_, i) => {
+              const pos = i + 1;
+              const defaults = generateDefaultLeaguePoints(data.teams.length);
+              const pts = data.config.leaguePoints?.[i] ?? defaults[i];
+              return (
+                <div
+                  key={i}
+                  className="flex items-center justify-between border-b border-neutral-100 py-2"
+                >
+                  <span className="text-[13px] text-neutral-600">
+                    {pos === 1 ? "1st" : pos === 2 ? "2nd" : pos === 3 ? "3rd" : `${pos}th`}
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={pts}
+                    onChange={(e) => {
+                      const current = data.config.leaguePoints ?? defaults;
+                      const updated = [...current];
+                      // Ensure array is long enough
+                      while (updated.length < data.teams.length) {
+                        updated.push(defaults[updated.length] ?? 1);
+                      }
+                      updated[i] = parseInt(e.target.value) || 0;
+                      setData({
+                        ...data,
+                        config: { ...data.config, leaguePoints: updated },
+                      });
+                    }}
+                    className="w-16 border-b border-transparent bg-transparent py-0.5 text-right text-[13px] tabular-nums text-neutral-900 placeholder:text-neutral-300 focus:border-primary-500 focus:outline-none"
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Teams */}
       <section>

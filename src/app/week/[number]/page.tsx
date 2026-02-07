@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, use } from "react";
 import Link from "next/link";
 import { LeagueData, DEFAULT_LEAGUE_DATA, WeekScore } from "@/lib/types";
-import { getTeamWeekResult } from "@/lib/scoring";
+import { getTeamWeekResult, getWeekLeaguePoints } from "@/lib/scoring";
 import { ScoreGrid } from "@/components/score-grid";
 import { useAuth } from "@/lib/use-auth";
 
@@ -96,6 +96,7 @@ export default function WeekPage({ params }: { params: Promise<{ number: string 
 
   const isLastWeek = weekNumber === data.config.numberOfWeeks;
   const teamResults = getTeamWeekResult(data, weekNumber);
+  const leagueResults = getWeekLeaguePoints(data, weekNumber);
 
   const week = data.weeks.find((w) => w.weekNumber === weekNumber);
   const scores = week?.scores ?? [];
@@ -149,6 +150,7 @@ export default function WeekPage({ params }: { params: Promise<{ number: string 
         <div className="space-y-10">
           {data.teams.map((team) => {
             const teamResult = teamResults.find((r) => r.teamId === team.id);
+            const leagueResult = leagueResults.find((r) => r.teamId === team.id);
             const countingIds = new Set(
               teamResult?.allScores
                 .filter((s) => s.counting)
@@ -167,6 +169,8 @@ export default function WeekPage({ params }: { params: Promise<{ number: string 
                   handleScoreChange(team.id, playerId, score)
                 }
                 teamTotal={teamResult?.countingTotal ?? 0}
+                rank={leagueResult?.rank}
+                leaguePoints={leagueResult?.adjustedLeaguePoints}
                 readOnly={!isAdmin}
               />
             );

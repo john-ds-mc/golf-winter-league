@@ -1,4 +1,4 @@
-import { LeagueData, WeekScore } from "./types";
+import { LeagueData, LeagueConfig, WeekScore } from "./types";
 
 export interface TeamWeekResult {
   teamId: string;
@@ -8,11 +8,20 @@ export interface TeamWeekResult {
   adjustedTotal: number; // after double-points multiplier
 }
 
+export interface WeekLeagueResult {
+  teamId: string;
+  teamName: string;
+  stablefordTotal: number;
+  rank: number;
+  leaguePoints: number;
+  adjustedLeaguePoints: number; // after double-points multiplier
+}
+
 export interface StandingsRow {
   rank: number;
   teamId: string;
   teamName: string;
-  weeklyTotals: (number | null)[]; // null = no scores entered
+  weeklyTotals: (number | null)[]; // league points per week (null = no scores)
   overallTotal: number;
 }
 
@@ -78,20 +87,87 @@ export function getTeamWeekResult(
 }
 
 /**
- * Calculate overall standings across all weeks.
+ * Generate default league points for N teams.
+ * 1st = 2*(N-1), 2nd = 2*(N-2), ..., last = 1
+ */
+export function generateDefaultLeaguePoints(numTeams: number): number[] {
+  if (numTeams <= 0) return [];
+  return Array.from({ length: numTeams }, (_, i) => {
+    const rank = i + 1;
+    return Math.max(1, 2 * (numTeams - rank));
+  });
+}
+
+/**
+ * Get the league points array to use — from config if valid, otherwise defaults.
+ */
+function resolveLeaguePoints(config: LeagueConfig, numTeams: number): number[] {
+  if (config.leaguePoints && config.leaguePoints.length >= numTeams) {
+    return config.leaguePoints;
+  }
+  return generateDefaultLeaguePoints(numTeams);
+}
+
+/**
+ * Rank teams for a given week and award league points.
+ */
+export function getWeekLeaguePoints(
+  leagueData: LeagueData,
+  weekNumber: number
+): WeekLeagueResult[] {
+  const teamResults = getTeamWeekResult(leagueData, weekNumber);
+  const teamsWithScores = teamResults.filter((r) =>
+    r.allScores.some((s) => s.score !== null)
+  );
+  if (teamsWithScores.length === 0) return [];
+
+  const { config } = leagueData;
+  const isStableford = config.scoringFormat === "stableford";
+  const isLastWeek = weekNumber === config.numberOfWeeks;
+  const multiplier = isLastWeek && config.doublePointsLastWeek ? 2 : 1;
+  const N = teamsWithScores.length;
+  const pointsTable = resolveLeaguePoints(config, N);
+
+  // Sort by counting total
+  const sorted = [...teamsWithScores].sort((a, b) =>
+    isStableford ? b.countingTotal - a.countingTotal : a.countingTotal - b.countingTotal
+  );
+
+  const results: WeekLeagueResult[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const r = sorted[i];
+    let rank = i + 1;
+    if (i > 0 && sorted[i].countingTotal === sorted[i - 1].countingTotal) {
+      rank = results[i - 1].rank;
+    }
+    const lp = pointsTable[rank - 1] ?? 1;
+    results.push({
+      teamId: r.teamId,
+      teamName: r.teamName,
+      stablefordTotal: r.countingTotal,
+      rank,
+      leaguePoints: lp,
+      adjustedLeaguePoints: lp * multiplier,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Calculate overall standings across all weeks using league points.
  */
 export function getStandings(leagueData: LeagueData): StandingsRow[] {
   const { config, teams } = leagueData;
-  const isStableford = config.scoringFormat === "stableford";
 
   const rows: StandingsRow[] = teams.map((team) => {
     const weeklyTotals: (number | null)[] = [];
 
     for (let w = 1; w <= config.numberOfWeeks; w++) {
-      const weekResults = getTeamWeekResult(leagueData, w);
-      const teamResult = weekResults.find((r) => r.teamId === team.id);
-      if (teamResult && teamResult.allScores.some((s) => s.score !== null)) {
-        weeklyTotals.push(teamResult.adjustedTotal);
+      const weekLP = getWeekLeaguePoints(leagueData, w);
+      const teamLP = weekLP.find((r) => r.teamId === team.id);
+      if (teamLP) {
+        weeklyTotals.push(teamLP.adjustedLeaguePoints);
       } else {
         weeklyTotals.push(null);
       }
@@ -111,15 +187,15 @@ export function getStandings(leagueData: LeagueData): StandingsRow[] {
     };
   });
 
-  // Sort: Stableford = highest total first, Stroke Play = lowest total first
-  rows.sort((a, b) => {
-    if (isStableford) return b.overallTotal - a.overallTotal;
-    return a.overallTotal - b.overallTotal;
-  });
+  // League points: highest total is always best
+  rows.sort((a, b) => b.overallTotal - a.overallTotal);
 
-  // Assign ranks
   rows.forEach((row, i) => {
-    row.rank = i + 1;
+    if (i > 0 && row.overallTotal === rows[i - 1].overallTotal) {
+      row.rank = rows[i - 1].rank;
+    } else {
+      row.rank = i + 1;
+    }
   });
 
   return rows;

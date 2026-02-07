@@ -26,6 +26,7 @@ export interface LeagueConfig {
   numberOfWeeks: number;
   bestScoresCount: number;
   doublePointsLastWeek: boolean;
+  leaguePoints?: number[]; // points per finishing position (1st, 2nd, …, last)
 }
 
 export interface LeagueData {

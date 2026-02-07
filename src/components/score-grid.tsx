@@ -10,6 +10,8 @@ interface ScoreGridProps {
   onScoreChange: (playerId: string, score: number | null) => void;
   teamTotal: number;
   readOnly?: boolean;
+  rank?: number;
+  leaguePoints?: number;
 }
 
 export function ScoreGrid({
@@ -20,6 +22,8 @@ export function ScoreGrid({
   onScoreChange,
   teamTotal,
   readOnly,
+  rank,
+  leaguePoints,
 }: ScoreGridProps) {
   return (
     <div>
@@ -30,6 +34,14 @@ export function ScoreGrid({
         <span className="text-[13px] tabular-nums text-neutral-500">
           Best {config.bestScoresCount}:{" "}
           <span className="font-semibold text-neutral-900">{teamTotal}</span>
+          {rank !== undefined && leaguePoints !== undefined && (
+            <>
+              <span className="mx-1.5 text-neutral-300">&middot;</span>
+              <span className="text-neutral-400">#{rank}</span>
+              <span className="mx-1.5 text-neutral-300">&middot;</span>
+              <span className="font-semibold text-primary-600">{leaguePoints} pts</span>
+            </>
+          )}
         </span>
       </div>
       <div className="border-t border-neutral-200">
