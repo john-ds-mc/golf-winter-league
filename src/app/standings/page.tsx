@@ -45,22 +45,20 @@ export default function StandingsPage() {
         </div>
       </div>
 
-      <div>
-        <div className="no-print">
-          <Link
-            href="/"
-            className="text-[13px] text-neutral-400 hover:text-neutral-600 transition-colors"
-          >
-            Dashboard
-          </Link>
-        </div>
+      <div className="no-print">
+        <Link
+          href="/"
+          className="text-[13px] text-neutral-400 hover:text-neutral-600 transition-colors"
+        >
+          Dashboard
+        </Link>
         <div className="flex items-baseline justify-between">
           <h1 className="mt-1 font-serif text-[32px] italic text-neutral-900">
             Standings
           </h1>
           <button
             onClick={() => setShowPrintDialog(true)}
-            className="no-print text-[13px] text-neutral-400 hover:text-neutral-900 transition-colors"
+            className="text-[13px] text-neutral-400 hover:text-neutral-900 transition-colors"
           >
             Print
           </button>
@@ -260,10 +258,17 @@ export default function StandingsPage() {
 
         return (
           <section key={`print-${weekNum}`} className="print-matrix">
-            <h2 className="mb-2 text-[13px] font-bold uppercase">
-              Week {weekNum}
-              {isLastWeek && data.config.doublePointsLastWeek ? " (2x)" : ""}
-            </h2>
+            <div className="flex items-center gap-3 mb-4">
+              <Image src="/logo.png" alt="RBGC" width={32} height={38} />
+              <div>
+                <div className="text-[14px] font-bold">{data.config.leagueName}</div>
+                <div className="text-[11px]">
+                  Week {weekNum}
+                  {isLastWeek && data.config.doublePointsLastWeek ? " (Double Points)" : ""}
+                  {" \u00b7 "}Best {data.config.bestScoresCount} scores
+                </div>
+              </div>
+            </div>
             <table className="print-table w-full text-[11px] border-collapse">
               <thead>
                 <tr>
