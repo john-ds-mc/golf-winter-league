@@ -11,7 +11,7 @@ function findRestCredentials(): { url: string; token: string } | null {
   const pairs = [
     [process.env.KV_REST_API_URL, process.env.KV_REST_API_TOKEN],
     [process.env.UPSTASH_REDIS_REST_URL, process.env.UPSTASH_REDIS_REST_TOKEN],
-    [process.env.GOLF_DB_REST_URL, process.env.GOLF_DB_REST_TOKEN],
+    [process.env.GOLF_DB_KV_REST_API_URL, process.env.GOLF_DB_KV_REST_API_TOKEN],
   ];
 
   for (const [url, token] of pairs) {
