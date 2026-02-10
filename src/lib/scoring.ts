@@ -106,7 +106,37 @@ function resolveLeaguePoints(config: LeagueConfig, numTeams: number): number[] {
 }
 
 /**
+ * Extract the counting scores for a team, sorted from best to worst.
+ * Stableford: descending (highest first). Stroke play: ascending (lowest first).
+ */
+function getCountingScores(result: TeamWeekResult, isStableford: boolean): number[] {
+  return result.allScores
+    .filter((s) => s.counting && s.score !== null)
+    .map((s) => s.score!)
+    .sort((a, b) => (isStableford ? b - a : a - b));
+}
+
+/**
+ * Compare two teams by tiebreaker: compare counting cards from worst (Nth)
+ * back to best (1st). Returns negative if a is better, positive if b is better, 0 if tied.
+ */
+function compareTiebreak(a: number[], b: number[], isStableford: boolean): number {
+  const len = Math.max(a.length, b.length);
+  // Compare from worst counting card (last) to best (first)
+  for (let i = len - 1; i >= 0; i--) {
+    const aVal = a[i] ?? (isStableford ? -Infinity : Infinity);
+    const bVal = b[i] ?? (isStableford ? -Infinity : Infinity);
+    if (aVal !== bVal) {
+      return isStableford ? bVal - aVal : aVal - bVal;
+    }
+  }
+  return 0;
+}
+
+/**
  * Rank teams for a given week and award league points.
+ * Tiebreaker: compare counting cards from worst to best.
+ * If still tied after all cards, average points across tied positions.
  */
 export function getWeekLeaguePoints(
   leagueData: LeagueData,
@@ -125,27 +155,59 @@ export function getWeekLeaguePoints(
   const N = teamsWithScores.length;
   const pointsTable = resolveLeaguePoints(config, N);
 
-  // Sort by counting total
-  const sorted = [...teamsWithScores].sort((a, b) =>
-    isStableford ? b.countingTotal - a.countingTotal : a.countingTotal - b.countingTotal
-  );
+  // Build counting scores for tiebreaker comparison
+  const withCounting = teamsWithScores.map((r) => ({
+    ...r,
+    countingScores: getCountingScores(r, isStableford),
+  }));
 
+  // Sort by counting total, then tiebreak on individual cards
+  const sorted = withCounting.sort((a, b) => {
+    const totalDiff = isStableford
+      ? b.countingTotal - a.countingTotal
+      : a.countingTotal - b.countingTotal;
+    if (totalDiff !== 0) return totalDiff;
+    return compareTiebreak(a.countingScores, b.countingScores, isStableford);
+  });
+
+  // Identify groups of truly tied teams (same total AND same individual cards)
+  // and average their league points
   const results: WeekLeagueResult[] = [];
-  for (let i = 0; i < sorted.length; i++) {
-    const r = sorted[i];
-    let rank = i + 1;
-    if (i > 0 && sorted[i].countingTotal === sorted[i - 1].countingTotal) {
-      rank = results[i - 1].rank;
+  let i = 0;
+  while (i < sorted.length) {
+    // Find the end of this tie group
+    let j = i + 1;
+    while (
+      j < sorted.length &&
+      sorted[j].countingTotal === sorted[i].countingTotal &&
+      compareTiebreak(sorted[j].countingScores, sorted[i].countingScores, isStableford) === 0
+    ) {
+      j++;
     }
-    const lp = pointsTable[rank - 1] ?? 1;
-    results.push({
-      teamId: r.teamId,
-      teamName: r.teamName,
-      scoreTotal: r.countingTotal,
-      rank,
-      leaguePoints: lp,
-      adjustedLeaguePoints: lp * multiplier,
-    });
+
+    const tieSize = j - i;
+    const rank = i + 1;
+
+    // Average the league points across the tied positions
+    let totalPoints = 0;
+    for (let k = 0; k < tieSize; k++) {
+      totalPoints += pointsTable[i + k] ?? 1;
+    }
+    const avgPoints = totalPoints / tieSize;
+
+    for (let k = i; k < j; k++) {
+      const r = sorted[k];
+      results.push({
+        teamId: r.teamId,
+        teamName: r.teamName,
+        scoreTotal: r.countingTotal,
+        rank,
+        leaguePoints: avgPoints,
+        adjustedLeaguePoints: avgPoints * multiplier,
+      });
+    }
+
+    i = j;
   }
 
   return results;
