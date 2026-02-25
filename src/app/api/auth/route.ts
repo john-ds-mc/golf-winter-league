@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const AUTH_USERNAME = process.env.AUTH_USERNAME ?? "admin";
-const AUTH_PASSWORD = process.env.AUTH_PASSWORD ?? "golf";
+const ADMIN_ACCOUNTS = [
+  {
+    username: process.env.AUTH_USERNAME ?? "admin",
+    password: process.env.AUTH_PASSWORD ?? "golf",
+  },
+  ...(process.env.AUTH_USERNAME_2
+    ? [{ username: process.env.AUTH_USERNAME_2, password: process.env.AUTH_PASSWORD_2 ?? "" }]
+    : []),
+];
+
 const SESSION_NAME = "session";
 
 async function makeToken(username: string, password: string): Promise<string> {
@@ -17,7 +25,11 @@ async function makeToken(username: string, password: string): Promise<string> {
 export async function POST(request: NextRequest) {
   const { username, password } = await request.json();
 
-  if (username !== AUTH_USERNAME || password !== AUTH_PASSWORD) {
+  const account = ADMIN_ACCOUNTS.find(
+    (a) => a.username === username && a.password === password
+  );
+
+  if (!account) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
@@ -43,10 +55,15 @@ export async function DELETE() {
 export async function GET() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_NAME)?.value;
-  const expected = await makeToken(AUTH_USERNAME, AUTH_PASSWORD);
+  if (!token) {
+    return NextResponse.json({ authenticated: false }, { status: 401 });
+  }
 
-  if (token === expected) {
-    return NextResponse.json({ authenticated: true });
+  for (const account of ADMIN_ACCOUNTS) {
+    const expected = await makeToken(account.username, account.password);
+    if (token === expected) {
+      return NextResponse.json({ authenticated: true });
+    }
   }
   return NextResponse.json({ authenticated: false }, { status: 401 });
 }

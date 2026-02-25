@@ -4,17 +4,30 @@ import { getLeagueData, setLeagueData } from "@/lib/kv";
 import { LeagueData } from "@/lib/types";
 
 async function isAuthenticated(): Promise<boolean> {
-  const AUTH_USERNAME = process.env.AUTH_USERNAME ?? "admin";
-  const AUTH_PASSWORD = process.env.AUTH_PASSWORD ?? "golf";
-  const encoder = new TextEncoder();
-  const data = encoder.encode(`${AUTH_USERNAME}:${AUTH_PASSWORD}:golf-league-salt`);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  const expected = Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  const accounts = [
+    {
+      username: process.env.AUTH_USERNAME ?? "admin",
+      password: process.env.AUTH_PASSWORD ?? "golf",
+    },
+    ...(process.env.AUTH_USERNAME_2
+      ? [{ username: process.env.AUTH_USERNAME_2, password: process.env.AUTH_PASSWORD_2 ?? "" }]
+      : []),
+  ];
 
   const cookieStore = await cookies();
-  return cookieStore.get("session")?.value === expected;
+  const token = cookieStore.get("session")?.value;
+  if (!token) return false;
+
+  for (const account of accounts) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(`${account.username}:${account.password}:golf-league-salt`);
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    const expected = Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    if (token === expected) return true;
+  }
+  return false;
 }
 
 export async function GET() {
