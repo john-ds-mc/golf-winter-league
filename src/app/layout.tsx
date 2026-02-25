@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Nav } from "@/components/nav";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
         <main className="mx-auto max-w-3xl px-6 py-10">
           {children}
         </main>
+        <Analytics />
       </body>
     </html>
   );
