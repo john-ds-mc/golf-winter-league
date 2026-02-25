@@ -300,13 +300,16 @@ export default function StandingsPage() {
                       return (
                         <td
                           key={team.id}
-                          className={`border border-neutral-300 px-2 py-1 text-center tabular-nums ${
+                          className={`border border-neutral-300 px-2 py-1 text-center ${
                             isCounting ? "font-bold" : ""
                           }`}
                         >
-                          {scoreEntry?.score !== null && scoreEntry?.score !== undefined
-                            ? scoreEntry.score
-                            : "\u2014"}
+                          <div className="text-[9px] leading-tight">{player.name}</div>
+                          <div className="tabular-nums">
+                            {scoreEntry?.score !== null && scoreEntry?.score !== undefined
+                              ? scoreEntry.score
+                              : "\u2014"}
+                          </div>
                         </td>
                       );
                     })}
