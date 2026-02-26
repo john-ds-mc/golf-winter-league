@@ -6,6 +6,9 @@ import Link from "next/link";
 import { LeagueData, DEFAULT_LEAGUE_DATA } from "@/lib/types";
 import { getStandings, getTeamWeekResult, getWeekLeaguePoints, isWeekComplete } from "@/lib/scoring";
 import { StandingsTable } from "@/components/standings-table";
+import { QRCodeSVG } from "qrcode.react";
+
+const SITE_URL = "https://golf-winter-league.vercel.app/";
 
 export default function StandingsPage() {
   const [data, setData] = useState<LeagueData>(DEFAULT_LEAGUE_DATA);
@@ -350,6 +353,13 @@ export default function StandingsPage() {
                 </tr>
               </tbody>
             </table>
+            <div className="print-qr mt-4 flex items-center gap-3">
+              <QRCodeSVG value={SITE_URL} size={48} level="M" marginSize={0} />
+              <div className="text-[9px] leading-tight">
+                <div className="font-bold">View live scores</div>
+                <div>{SITE_URL.replace(/^https?:\/\//, "")}</div>
+              </div>
+            </div>
           </section>
         );
       })}
