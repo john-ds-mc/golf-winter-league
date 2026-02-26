@@ -104,4 +104,21 @@ input[type="number"] {
   .print-table {
     border: 2px solid #000;
   }
+  /* QR code printout cards */
+  .qr-print-area {
+    margin-top: 0 !important;
+    gap: 48px !important;
+  }
+  .qr-card {
+    border: 2px solid #000 !important;
+    border-radius: 8px !important;
+    padding: 32px 48px !important;
+    break-inside: avoid;
+  }
+  .qr-card h2 {
+    font-size: 24px !important;
+  }
+  .qr-card p {
+    color: #444 !important;
+  }
 }
